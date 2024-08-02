@@ -6,6 +6,14 @@ oasisExtrapolate list = extrapolated + last list
   where
     extrapolated = oasisExtrapolate $ zipWith (-) (tail list) list
 
+oasisBackwardsExtrapolate :: [Integer] -> Integer
+oasisBackwardsExtrapolate [] = 0
+oasisBackwardsExtrapolate list
+  | all (== 0) list = 0
+oasisBackwardsExtrapolate list = head list - extrapolated
+  where
+    extrapolated = oasisBackwardsExtrapolate $ zipWith (-) (tail list) list
+
 main :: IO ()
 main = do
   let x =
@@ -13,6 +21,7 @@ main = do
           [1, 3, 6, 10, 15, 21],
           [10, 13, 16, 21, 30, 45]
         ]
+  print "Extrapolated"
   print $ sum $ map oasisExtrapolate x
 
   contents <- readFile "input.txt"
@@ -21,3 +30,7 @@ main = do
   let int_matrix = map parser $ lines contents
 
   print $ sum $ map oasisExtrapolate int_matrix
+
+  print "Backwards extrapolated"
+  print $ sum $ map oasisBackwardsExtrapolate x
+  print $ sum $ map oasisBackwardsExtrapolate int_matrix
