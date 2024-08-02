@@ -1,4 +1,7 @@
 
+secrets.env
+input.txt
+
 # Haskell compilation files
 *.hi
 *.o
