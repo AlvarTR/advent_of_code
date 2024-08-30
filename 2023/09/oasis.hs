@@ -2,7 +2,7 @@ oasisExtrapolate :: [Integer] -> Integer
 oasisExtrapolate [] = 0
 oasisExtrapolate list
   | all (== 0) list = 0
-oasisExtrapolate list = extrapolated + last list
+  | otherwise = extrapolated + last list
   where
     extrapolated = oasisExtrapolate $ zipWith (-) (tail list) list
 
@@ -10,7 +10,7 @@ oasisBackwardsExtrapolate :: [Integer] -> Integer
 oasisBackwardsExtrapolate [] = 0
 oasisBackwardsExtrapolate list
   | all (== 0) list = 0
-oasisBackwardsExtrapolate list = head list - extrapolated
+  | otherwise = head list - extrapolated
   where
     extrapolated = oasisBackwardsExtrapolate $ zipWith (-) (tail list) list
 
