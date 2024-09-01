@@ -1,25 +1,26 @@
-import Data.Bifunctor as Bifunctor
+
+import Data.Char ( isDigit )
+import Data.Bifunctor as Bifunctor ( Bifunctor(first, second) )
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 
-rowInfluence :: Int -> String -> (Set.Set (Int, Int), Map.Map Int (Set.Set (Int, Int)))
+rowInfluence :: Int -> String -> ([Set.Set (Int, Int)], [(Int, Set.Set (Int, Int))])
 rowInfluence = influences "" Set.empty 0
 
-influences :: String -> Set.Set (Int, Int) -> Int -> Int -> String -> (Set.Set (Int, Int), Map.Map Int (Set.Set (Int, Int)))
-influences "" _ _ _ "" = (Set.empty, Map.empty)
+influences :: String -> Set.Set (Int, Int) -> Int -> Int -> String -> ([Set.Set (Int, Int)], [(Int, Set.Set (Int, Int))])
+influences "" _ _ _ "" = ([], [])
+influences partialNumber partialSet _ _ "" = ([], [(read partialNumber, partialSet)])
 influences "" _ columnNum rowNum ('.':rest) = influences "" Set.empty (columnNum+1) rowNum rest
-influences partialNumber partialSet _ _ "" = (Set.empty, Map.singleton (read partialNumber) partialSet)
 influences partialNumber partialSet columnNum rowNum ('.':rest) =
-  Bifunctor.second (Map.union (Map.singleton (read partialNumber) partialSet)) keepProcessing
-  where
-    keepProcessing = influences "" Set.empty (columnNum+1) rowNum rest
+  Bifunctor.second ((read partialNumber, partialSet):)
+  $ influences "" Set.empty (columnNum+1) rowNum rest
 influences partialNumber partialSet columnNum rowNum (first:rest)
-  | first `Set.member` Set.fromList "0123456789" =
+  | isDigit first =
     influences (partialNumber ++ [first])
-    (Set.union partialSet $ Set.singleton (rowNum, columnNum))
+    (Set.insert (rowNum, columnNum) partialSet)
     (columnNum+1) rowNum rest
   | otherwise =
-    Bifunctor.first (Set.union influenceGrid)
+    Bifunctor.first (influenceGrid:)
     $ influences partialNumber partialSet columnNum rowNum ('.':rest)
   where
     influenceGrid = Set.delete (rowNum, columnNum)
@@ -27,14 +28,19 @@ influences partialNumber partialSet columnNum rowNum (first:rest)
       $ zip (concatMap (replicate 3) [rowNum-1 .. rowNum+1])
       $ concat $ replicate 3 [columnNum-1 .. columnNum+1]
 
-numbersInfluencedBySymbols :: [Set.Set (Int, Int)] -> [Map.Map Int (Set.Set (Int, Int))] -> [Int]
+numbersInfluencedBySymbols :: [[Set.Set (Int, Int)]] -> [[(Int, Set.Set (Int, Int))]] -> [[Int]]
 numbersInfluencedBySymbols _ [] = []
-numbersInfluencedBySymbols [upSet, sameLineSet] [first] =
-  Map.keys (Map.filter (not . Set.null . Set.intersection (Set.unions (upSet:[sameLineSet]))) first)
-  
-numbersInfluencedBySymbols (upSet:sameLineSet:belowSet:otherSets) (first:rest) =
-  Map.keys (Map.filter (not . Set.null . Set.intersection (Set.unions (upSet:sameLineSet:[belowSet]))) first) ++ 
-  numbersInfluencedBySymbols (sameLineSet:belowSet:otherSets) rest
+numbersInfluencedBySymbols [upSetList, sameLineSetList] [first] =
+  let intersectionsWithUp = filter (not . Set.null . Set.intersection (Set.unions upSetList) . snd ) first
+      intersectionsWithMiddle = filter (not . Set.null . Set.intersection (Set.unions sameLineSetList) . snd ) first
+  in [map fst $ intersectionsWithUp ++ intersectionsWithMiddle]
+  -- [Map.keys (Map.filter (not . Set.null . Set.intersection (Set.unions (Set.unions upSetList:[Set.unions sameLineSetList]))) first)]
+
+numbersInfluencedBySymbols (upSetList:sameLineSetList:belowSetList:otherSetLists) (first:rest) =
+  let intersectionsWithUp = filter (not . Set.null . Set.intersection (Set.unions upSetList) . snd ) first
+      intersectionsWithMiddle = filter (not . Set.null . Set.intersection (Set.unions sameLineSetList) . snd ) first
+      intersectionsWithBelow = filter (not . Set.null . Set.intersection (Set.unions belowSetList) . snd ) first
+  in map fst (intersectionsWithUp ++ intersectionsWithMiddle ++ intersectionsWithBelow) : numbersInfluencedBySymbols (sameLineSetList:belowSetList:otherSetLists) rest
 
 main :: IO ()
 main = do
@@ -45,34 +51,34 @@ main = do
           "......#...",
           "617-......",
           ".....+.58.",
-          "..592...83",
+          "..592.....",
           "......755.",
           "...$./....",
           ".664.598.."
         ]
 
-  print "Example:"
-  mapM_ print example
+  -- print "Example:"
+  -- mapM_ print example
 
   let exampleListOfInfluences = zipWith rowInfluence [0 ..] example
-  print "Example parsed:"
+  -- print "Example parsed:"
   mapM_ print exampleListOfInfluences
 
-  let exampleNumbersWithInfluences = uncurry numbersInfluencedBySymbols $ Bifunctor.first (Set.empty:) $ unzip exampleListOfInfluences
-  print "Example numbers with symbol influence:"
+  let exampleNumbersWithInfluences = uncurry numbersInfluencedBySymbols $ Bifunctor.first ([]:) $ unzip exampleListOfInfluences
+  -- print "Example numbers with symbol influence:"
   print exampleNumbersWithInfluences
 
   print "Example sum"
-  print $ sum exampleNumbersWithInfluences
+  print $ sum $ map sum exampleNumbersWithInfluences
 
   contents <- readFile "input.txt"
   let inputListOfInfluences = zipWith rowInfluence [0 ..] $ lines contents
-  let inputNumbersWithInfluences = uncurry numbersInfluencedBySymbols $ Bifunctor.first (Set.empty:) $ unzip inputListOfInfluences
+  let inputNumbersWithInfluences = uncurry numbersInfluencedBySymbols $ Bifunctor.first ([]:) $ unzip inputListOfInfluences
 
   print "Input numbers with symbol influence:"
-  print inputNumbersWithInfluences
+  mapM_ print $ zip [0..] inputNumbersWithInfluences
 
   print "Input sum"
-  print $ sum inputNumbersWithInfluences
+  print $ sum $ map sum inputNumbersWithInfluences
 
   print ""
