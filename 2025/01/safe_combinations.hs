@@ -17,19 +17,26 @@ countZeroPassings state num_zeroes ((direction : num_turns) : rest) = countZeroP
     turns = read num_turns
     new_unmod_state = (if direction == 'R' then (+) else (-)) state turns
     (adding_num_zeroes, new_state) = new_unmod_state `divMod` safeModulus
-    new_num_zeroes = (+) num_zeroes $ naturalFromInteger $ (+) adding_num_zeroes $ if (state == 0) && (new_state /= 0) then 1 else 0
+    new_num_zeroes =
+      (+) num_zeroes $
+        naturalFromInteger $
+          (+) adding_num_zeroes $
+            if ((state == 0) && (adding_num_zeroes < 0)) || ((adding_num_zeroes == 0) && (new_state == 0)) then 1 else 0
 
 debugPassings :: [String] -> [String] -> IO ()
 debugPassings storage [] = do
-  print $ length storage
-  print $ last storage
-  print $ countZeroPassings 50 0 storage
+  print (length storage, last storage, countZeroPassings' 50 0 storage)
 debugPassings storage (first : rest) = do
-  print $ length storage
-  print $ last storage
-  print $ countZeroPassings 50 0 storage
-  print ""
+  print (length storage, last storage, countZeroPassings' 50 0 storage)
   debugPassings (storage ++ [first]) rest
+
+countZeroPassings' :: Integer -> Natural -> [String] -> (Integer, Natural)
+countZeroPassings' state num_zeroes [] = (state, num_zeroes)
+countZeroPassings' state num_zeroes ((direction : num_turns) : rest) = countZeroPassings' new_state new_num_zeroes rest
+  where
+    state_steps = map (flip mod safeModulus . (if direction == 'R' then (+) else (-)) state) [1 .. read num_turns]
+    new_state = last state_steps
+    new_num_zeroes = (+) num_zeroes $ (naturalFromInteger . toInteger . length . filter (0 ==)) state_steps
 
 main :: IO ()
 main = do
@@ -59,11 +66,11 @@ main = do
 
   -- 2nd star
   print "Second star example:"
-  print $ countZeroPassings 50 0 example
+  print $ countZeroPassings' 50 0 example
 
-  debugPassings [head $ lines contents] $ tail $ lines contents
+  -- debugPassings [head $ lines contents] $ tail $ lines contents
 
   print "Second star input:"
-  print $ countZeroPassings 50 0 $ lines contents
+  print $ countZeroPassings' 50 0 $ lines contents
 
 -- print ""
