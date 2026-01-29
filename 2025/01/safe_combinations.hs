@@ -12,23 +12,29 @@ countZeroLandings state num_zeroes ((direction : num_turns) : rest) = countZeroL
 
 countZeroPassings :: Integer -> Natural -> [String] -> (Integer, Natural)
 countZeroPassings state num_zeroes [] = (state, num_zeroes)
-countZeroPassings state num_zeroes ((direction : num_turns) : rest) = countZeroPassings new_state new_num_zeroes rest
+countZeroPassings state num_zeroes ((direction : turns_str) : rest)
+  | turns == 0 = countZeroPassings state num_zeroes rest
+  | turns >= safeModulus = countZeroPassings state (num_zeroes + 1) ((direction:show (turns - safeModulus)):rest)
+  | turns_and_state == 0 = countZeroPassings 0 (num_zeroes + 1) rest
+  -- state > turns && direction == 'L'
+  | direction == 'R' && turns_and_state < safeModulus = countZeroPassings turns_and_state num_zeroes rest
+  | direction == 'R' && turns_and_state >= safeModulus = countZeroPassings (turns_and_state - safeModulus) (num_zeroes + 1) rest
+  | direction == 'L' && turns_and_state < 0 = countZeroPassings (abs turns_and_state) num_zeroes rest
+  | direction == 'L' && state == 0 = countZeroPassings new_state num_zeroes rest
+  | direction == 'L' && turns_and_state < safeModulus = countZeroPassings new_state (num_zeroes + 1) rest
+  -- | otherwise = countZeroPassings state num_zeroes rest
   where
-    turns = read num_turns
-    new_unmod_state = (if direction == 'R' then (+) else (-)) state turns
-    (adding_num_zeroes, new_state) = new_unmod_state `divMod` safeModulus
-    new_num_zeroes =
-      (+) num_zeroes $
-        naturalFromInteger $
-          (+) adding_num_zeroes $
-            if ((state == 0) && (adding_num_zeroes < 0)) || ((adding_num_zeroes == 0) && (new_state == 0)) then 1 else 0
+    direction_sign = if direction == 'R' then (+) else (-)
+    turns = read turns_str
+    turns_and_state = direction_sign turns state
+    new_state = flip mod safeModulus $ direction_sign state turns 
 
-debugPassings :: [String] -> [String] -> IO ()
-debugPassings storage [] = do
-  print (length storage, last storage, countZeroPassings' 50 0 storage)
-debugPassings storage (first : rest) = do
-  print (length storage, last storage, countZeroPassings' 50 0 storage)
-  debugPassings (storage ++ [first]) rest
+debugPassings :: (Integer -> Natural -> [String] -> (Integer, Natural)) -> [String] -> [String] -> IO ()
+debugPassings function storage [] = do
+  print (length storage, last storage, function 50 0 storage)
+debugPassings function storage (first : rest) = do
+  print (length storage, last storage, function 50 0 storage)
+  debugPassings function (storage ++ [first]) rest
 
 countZeroPassings' :: Integer -> Natural -> [String] -> (Integer, Natural)
 countZeroPassings' state num_zeroes [] = (state, num_zeroes)
@@ -66,11 +72,13 @@ main = do
 
   -- 2nd star
   print "Second star example:"
+  print $ countZeroPassings 50 0 example
   print $ countZeroPassings' 50 0 example
 
-  -- debugPassings [head $ lines contents] $ tail $ lines contents
+  -- debugPassings countZeroPassings' [head $ lines contents] $ tail $ lines contents
 
   print "Second star input:"
+  print $ countZeroPassings 50 0 $ lines contents
   print $ countZeroPassings' 50 0 $ lines contents
 
 -- print ""
