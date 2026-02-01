@@ -1,15 +1,22 @@
+module Main where
+
 import Data.List.Split (splitOn)
 import GHC.Natural (Natural, naturalFromInteger)
 
 invalidID :: String -> Natural
-invalidID id
-  | odd $ length id = 0
-  | uncurry (==) halves = read id
+invalidID [] = 0
+invalidID candidateId
+  | odd $ length candidateId = 0
+  | uncurry (==) halves = read candidateId
   | otherwise = 0
   where
-    halves = splitAt (length id `div` 2) id
+    halves = splitAt (length candidateId `div` 2) candidateId
 
 invalidIDInterval :: [String] -> Natural
+
+invalidIDInterval [] = 0
+invalidIDInterval [_] = 0
+invalidIDInterval (_:buffer@(_:(_:_))) = invalidIDInterval buffer
 invalidIDInterval [interval_start, interval_stop] = invNumSum
   where
     start_nat = (naturalFromInteger . read) interval_start

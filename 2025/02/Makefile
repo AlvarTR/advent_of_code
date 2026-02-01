@@ -1,16 +1,18 @@
 
-ADVENT_CODENAME:=invalid_ids
+ADVENT_CODENAME:=app/Main
 
 MAKEFILE_DIR:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-all: clean ${ADVENT_CODENAME}
+all: clean run
 
 OPT_LEVEL:=0
-${ADVENT_CODENAME}: 
-	echo $@ > ${MAKEFILE_DIR}.gitignore
-	ghc -fprof-auto -rtsopts -O${OPT_LEVEL} ${MAKEFILE_DIR}$@.hs && ${MAKEFILE_DIR}$@ -p
+run: ${MAKEFILE_DIR}dist-newstyle
+	HASKELL_EXE=$(shell cabal list-bin ${MAKEFILE_DIR}); \
+	echo $$HASKELL_EXE; \
+	$$HASKELL_EXE +RTS -p
 
 clean:
-	rm -f ${MAKEFILE_DIR}${ADVENT_CODENAME}
+	rm -rf ${MAKEFILE_DIR}dist-newstyle
 
-	
+${MAKEFILE_DIR}dist-newstyle: 
+	cabal build --enable-profiling --profiling-detail=late
