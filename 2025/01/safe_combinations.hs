@@ -14,20 +14,20 @@ countZeroPassings :: Integer -> Natural -> [String] -> (Integer, Natural)
 countZeroPassings state num_zeroes [] = (state, num_zeroes)
 countZeroPassings state num_zeroes ((direction : turns_str) : rest)
   | turns == 0 = countZeroPassings state num_zeroes rest
-  | turns >= safeModulus = countZeroPassings state (num_zeroes + 1) ((direction:show (turns - safeModulus)):rest)
+  | turns >= safeModulus = countZeroPassings state ((+) num_zeroes $ naturalFromInteger adding_zeroes) $ (direction : show summarized_turns) : rest
   | turns_and_state == 0 = countZeroPassings 0 (num_zeroes + 1) rest
-  -- state > turns && direction == 'L'
   | direction == 'R' && turns_and_state < safeModulus = countZeroPassings turns_and_state num_zeroes rest
   | direction == 'R' && turns_and_state >= safeModulus = countZeroPassings (turns_and_state - safeModulus) (num_zeroes + 1) rest
+  -- direction == 'L' && state > turns
   | direction == 'L' && turns_and_state < 0 = countZeroPassings (abs turns_and_state) num_zeroes rest
   | direction == 'L' && state == 0 = countZeroPassings new_state num_zeroes rest
   | direction == 'L' && turns_and_state < safeModulus = countZeroPassings new_state (num_zeroes + 1) rest
-  -- | otherwise = countZeroPassings state num_zeroes rest
   where
     direction_sign = if direction == 'R' then (+) else (-)
     turns = read turns_str
     turns_and_state = direction_sign turns state
-    new_state = flip mod safeModulus $ direction_sign state turns 
+    new_state = flip mod safeModulus $ direction_sign state turns
+    (adding_zeroes, summarized_turns) = turns `divMod` safeModulus
 
 debugPassings :: (Integer -> Natural -> [String] -> (Integer, Natural)) -> [String] -> [String] -> IO ()
 debugPassings function storage [] = do
@@ -38,9 +38,14 @@ debugPassings function storage (first : rest) = do
 
 countZeroPassings' :: Integer -> Natural -> [String] -> (Integer, Natural)
 countZeroPassings' state num_zeroes [] = (state, num_zeroes)
-countZeroPassings' state num_zeroes ((direction : num_turns) : rest) = countZeroPassings' new_state new_num_zeroes rest
+countZeroPassings' state num_zeroes ((direction : turns_str) : rest)
+  | turns == 0 = countZeroPassings' state num_zeroes rest
+  | turns >= safeModulus = countZeroPassings' state ((+) num_zeroes $ naturalFromInteger adding_zeroes) $ (direction : show summarized_turns) : rest
+  | otherwise = countZeroPassings' new_state new_num_zeroes rest
   where
-    state_steps = map (flip mod safeModulus . (if direction == 'R' then (+) else (-)) state) [1 .. read num_turns]
+    turns = read turns_str
+    (adding_zeroes, summarized_turns) = turns `divMod` safeModulus
+    state_steps = map (flip mod safeModulus . (if direction == 'R' then (+) else (-)) state) [1 .. turns]
     new_state = last state_steps
     new_num_zeroes = (+) num_zeroes $ (naturalFromInteger . toInteger . length . filter (0 ==)) state_steps
 
