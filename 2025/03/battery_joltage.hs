@@ -1,4 +1,6 @@
-import Data.List (nub)
+import Data.List (elemIndex, findIndex, nub)
+import Data.Maybe (fromJust)
+
 -- import GHC.Natural (Natural, naturalFromInteger)
 -- import GHC.Num (integerFromNatural)
 
@@ -15,7 +17,7 @@ maxFromLeftToRight :: [[Integer]] -> [[Integer]]
 maxFromLeftToRight = map (tail . scanl max 1)
 
 joltageApproximation :: [Integer] -> [Integer] -> Integer
-joltageApproximation left@(_:(_:_)) (first_right:(second_right:_))
+joltageApproximation left@(_ : (_ : _)) (first_right : (second_right : _))
   | first_right > vice_last_left = first_right * 10 + second_right
   | first_right < vice_last_left = vice_last_left * 10 + last_left
   | first_right == vice_last_left && second_right > last_left = first_right * 10 + second_right
@@ -24,13 +26,30 @@ joltageApproximation left@(_:(_:_)) (first_right:(second_right:_))
   where
     last_left = last left
     vice_last_left = last $ init left
-joltageApproximation from_left@(_:(_:_)) [_] = vice_last_left * 10 + last_left
+joltageApproximation left@(_ : (_ : _)) [_] = vice_last_left * 10 + last_left
   where
-    last_left = last from_left
-    vice_last_left = last $ init from_left
-joltageApproximation [_] (first_right:(second_right:_)) = first_right * 10 + second_right
+    last_left = last left
+    vice_last_left = last $ init left
+joltageApproximation [_] (first_right : (second_right : _)) = first_right * 10 + second_right
+joltageApproximation left@(_ : (_ : _)) [] = vice_last_left * 10 + last_left
+  where
+    last_left = last left
+    vice_last_left = last $ init left
+joltageApproximation [] (first_right : (second_right : _)) = first_right * 10 + second_right
 joltageApproximation _ _ = 0
 
+bestBattery :: [Integer] -> Integer
+bestBattery [] = 0
+bestBattery digits
+  | num_max_digits >= 2 = max_digit * 10 + max_digit
+  | num_max_digits == 1 && (max_digit_position + 1) /= length digits = max_digit * 10 + greatest_digit_after_max_digit
+  | otherwise = maximum before_max_digit * 10 + max_digit
+  where
+    max_digit = maximum digits
+    num_max_digits = length $ filter (== max_digit) digits
+    max_digit_position = fromJust $ elemIndex max_digit digits
+    (before_max_digit, max_digit_and_beyond) = splitAt max_digit_position digits
+    greatest_digit_after_max_digit = maximum $ tail max_digit_and_beyond
 
 main :: IO ()
 main = do
@@ -51,18 +70,20 @@ main = do
   -- print $ map nub exampleRL
   -- print $ zip exampleLR (map reverse exampleRL)
   print $ zipWith joltageApproximation (map nub exampleLR) (map nub exampleRL)
+  print $ map bestBattery example_matrix
   -- print $ countZeroLandings 50 0 example
 
   -- Input text
   contents <- readFile "input.txt"
   print "First star input:"
-  
+
   let input_str_matrix = map (recursiveSplitAt [] 1) $ lines contents
   let input_matrix = map (map (toInteger . read)) input_str_matrix
   let inputLR = maxFromLeftToRight input_matrix
   let inputRL = maxFromRightToLeft input_matrix
-  print $ sum $ zipWith joltageApproximation (map nub inputLR) (map nub inputRL)
-
+  -- mapM_ print $ zip3 (lines contents) (zip inputLR inputRL) $ map show $ zipWith joltageApproximation (map nub inputLR) (map nub inputRL)
+  mapM_ print $ zip (lines contents) $ map bestBattery input_matrix
+  print $ sum $ map bestBattery input_matrix
   print ""
 
   -- 2nd star
@@ -73,7 +94,8 @@ main = do
   -- debugPassings countZeroPassings' [head $ lines contents] $ tail $ lines contents
 
   print "Second star input:"
-  -- print $ countZeroPassings 50 0 $ lines contents
-  -- print $ countZeroPassings' 50 0 $ lines contents
+
+-- print $ countZeroPassings 50 0 $ lines contents
+-- print $ countZeroPassings' 50 0 $ lines contents
 
 -- print ""

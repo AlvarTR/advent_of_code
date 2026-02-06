@@ -3,12 +3,15 @@ ADVENT_CODENAME:=battery_joltage
 
 MAKEFILE_DIR:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-all: clean ${ADVENT_CODENAME}
+all: build run
 
 OPT_LEVEL:=0
-${ADVENT_CODENAME}: 
-	echo $@ > ${MAKEFILE_DIR}.gitignore
-	ghc -prof -fprof-auto -rtsopts -O${OPT_LEVEL} ${MAKEFILE_DIR}$@.hs && ${MAKEFILE_DIR}$@ +RTS -p
+build: 
+	echo ${ADVENT_CODENAME} > ${MAKEFILE_DIR}.gitignore
+	ghc -prof -fprof-auto -rtsopts -O${OPT_LEVEL} ${MAKEFILE_DIR}${ADVENT_CODENAME}.hs 
+	
+run:
+	${MAKEFILE_DIR}${ADVENT_CODENAME} +RTS -p
 
 clean:
 	rm -f ${MAKEFILE_DIR}${ADVENT_CODENAME}
