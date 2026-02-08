@@ -3,18 +3,18 @@ import GHC.Num (integerFromNatural)
 
 safeModulus = 100
 
-countZeroLandings :: Integer -> Natural -> [String] -> (Integer, Natural)
+countZeroLandings :: Int -> Natural -> [String] -> (Int, Natural)
 countZeroLandings state num_zeroes [] = (state, num_zeroes)
 countZeroLandings state num_zeroes ((direction : num_turns) : rest) = countZeroLandings new_state new_num_zeroes rest
   where
     new_state = flip mod safeModulus $ (if direction == 'R' then (+) else (-)) state $ read num_turns
     new_num_zeroes = (+) num_zeroes $ if new_state == 0 then 1 else 0
 
-countZeroPassings :: Integer -> Natural -> [String] -> (Integer, Natural)
+countZeroPassings :: Int -> Natural -> [String] -> (Int, Natural)
 countZeroPassings state num_zeroes [] = (state, num_zeroes)
 countZeroPassings state num_zeroes ((direction : turns_str) : rest)
   | turns == 0 = countZeroPassings state num_zeroes rest
-  | turns >= safeModulus = countZeroPassings state ((+) num_zeroes $ naturalFromInteger adding_zeroes) $ (direction : show summarized_turns) : rest
+  | turns >= safeModulus = countZeroPassings state ((+) num_zeroes $ naturalFromInteger $ toInteger adding_zeroes) $ (direction : show summarized_turns) : rest
   | turns_and_state == 0 = countZeroPassings 0 (num_zeroes + 1) rest
   | direction == 'R' && turns_and_state < safeModulus = countZeroPassings turns_and_state num_zeroes rest
   | direction == 'R' && turns_and_state >= safeModulus = countZeroPassings (turns_and_state - safeModulus) (num_zeroes + 1) rest
@@ -29,18 +29,18 @@ countZeroPassings state num_zeroes ((direction : turns_str) : rest)
     new_state = flip mod safeModulus $ direction_sign state turns
     (adding_zeroes, summarized_turns) = turns `divMod` safeModulus
 
-debugPassings :: (Integer -> Natural -> [String] -> (Integer, Natural)) -> [String] -> [String] -> IO ()
+debugPassings :: (Int -> Natural -> [String] -> (Int, Natural)) -> [String] -> [String] -> IO ()
 debugPassings function storage [] = do
   print (length storage, last storage, function 50 0 storage)
 debugPassings function storage (first : rest) = do
   print (length storage, last storage, function 50 0 storage)
   debugPassings function (storage ++ [first]) rest
 
-countZeroPassings' :: Integer -> Natural -> [String] -> (Integer, Natural)
+countZeroPassings' :: Int -> Natural -> [String] -> (Int, Natural)
 countZeroPassings' state num_zeroes [] = (state, num_zeroes)
 countZeroPassings' state num_zeroes ((direction : turns_str) : rest)
   | turns == 0 = countZeroPassings' state num_zeroes rest
-  | turns >= safeModulus = countZeroPassings' state ((+) num_zeroes $ naturalFromInteger adding_zeroes) $ (direction : show summarized_turns) : rest
+  | turns >= safeModulus = countZeroPassings' state ((+) num_zeroes $ naturalFromInteger $ toInteger adding_zeroes) $ (direction : show summarized_turns) : rest
   | otherwise = countZeroPassings' new_state new_num_zeroes rest
   where
     turns = read turns_str
