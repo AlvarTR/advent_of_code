@@ -1,5 +1,6 @@
 import Data.List (elemIndex, findIndex, nub)
 import Data.Maybe (fromJust)
+import GHC.Natural (Natural)
 
 -- import GHC.Natural (Natural, naturalFromInteger)
 -- import GHC.Num (integerFromNatural)
@@ -38,9 +39,9 @@ joltageApproximation left@(_ : (_ : _)) [] = vice_last_left * 10 + last_left
 joltageApproximation [] (first_right : (second_right : _)) = first_right * 10 + second_right
 joltageApproximation _ _ = 0
 
-bestBattery :: [Integer] -> Integer
-bestBattery [] = 0
-bestBattery digits
+best2Batteries :: [Integer] -> Integer
+best2Batteries [] = 0
+best2Batteries digits
   | num_max_digits >= 2 = max_digit * 10 + max_digit
   | num_max_digits == 1 && (max_digit_position + 1) /= length digits = max_digit * 10 + greatest_digit_after_max_digit
   | otherwise = maximum before_max_digit * 10 + max_digit
@@ -50,6 +51,22 @@ bestBattery digits
     max_digit_position = fromJust $ elemIndex max_digit digits
     (before_max_digit, max_digit_and_beyond) = splitAt max_digit_position digits
     greatest_digit_after_max_digit = maximum $ tail max_digit_and_beyond
+
+bestNBatteries :: Integer -> Int -> [Integer] -> Integer
+bestNBatteries accum 0 _ = accum
+bestNBatteries accum counter digits = bestNBatteries (accum * 10 + max_digit) (counter -1) $ tail max_digit_and_beyond 
+  where
+    (before_valid_digits, counter_limit:_) = splitAt (length digits - counter) digits
+    valid_digits = before_valid_digits ++ [counter_limit]
+    max_digit = maximum valid_digits
+    max_digit_position = fromJust $ elemIndex max_digit digits
+    (_, max_digit_and_beyond) = splitAt max_digit_position digits
+
+best2Batteries' :: [Integer] -> Integer
+best2Batteries' = bestNBatteries 0 2
+
+best12Batteries :: [Integer] -> Integer
+best12Batteries = bestNBatteries 0 12
 
 main :: IO ()
 main = do
@@ -69,8 +86,8 @@ main = do
   -- print $ map nub exampleLR
   -- print $ map nub exampleRL
   -- print $ zip exampleLR (map reverse exampleRL)
-  print $ zipWith joltageApproximation (map nub exampleLR) (map nub exampleRL)
-  print $ map bestBattery example_matrix
+  -- print $ zipWith joltageApproximation (map nub exampleLR) (map nub exampleRL)
+  mapM_ print $ zip3 example (map best2Batteries example_matrix) $ map best2Batteries' example_matrix
   -- print $ countZeroLandings 50 0 example
 
   -- Input text
@@ -82,20 +99,14 @@ main = do
   let inputLR = maxFromLeftToRight input_matrix
   let inputRL = maxFromRightToLeft input_matrix
   -- mapM_ print $ zip3 (lines contents) (zip inputLR inputRL) $ map show $ zipWith joltageApproximation (map nub inputLR) (map nub inputRL)
-  mapM_ print $ zip (lines contents) $ map bestBattery input_matrix
-  print $ sum $ map bestBattery input_matrix
+  mapM_ print $ zip3 (lines contents) (map best2Batteries input_matrix) $ map best2Batteries' input_matrix
+  print $ sum $ map best2Batteries input_matrix
   print ""
 
   -- 2nd star
   print "Second star example:"
-  -- print $ countZeroPassings 50 0 example
-  -- print $ countZeroPassings' 50 0 example
-
-  -- debugPassings countZeroPassings' [head $ lines contents] $ tail $ lines contents
+  mapM_ print $ zip example $ map best12Batteries example_matrix
 
   print "Second star input:"
-
--- print $ countZeroPassings 50 0 $ lines contents
--- print $ countZeroPassings' 50 0 $ lines contents
-
--- print ""
+  mapM_ print $ zip (lines contents) $ map best12Batteries input_matrix
+  print $ sum $ map best12Batteries input_matrix
