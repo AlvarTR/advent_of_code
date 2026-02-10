@@ -69,7 +69,8 @@ executable freshIngredients
     -- Other library packages from which modules are imported.
     build-depends:    
         base ^>=4.18.3.0,
-        split == 0.2.5
+        split == 0.2.5,
+        containers == 0.8
 
     -- Directories containing source files.
     hs-source-dirs:   app

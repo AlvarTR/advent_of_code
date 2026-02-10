@@ -1,6 +1,7 @@
 module Main where
 
 import Data.List.Split (splitOn)
+import qualified Data.Set as Set
 
 freshIngredient :: [String] -> Integer -> Int
 freshIngredient [] _ = 0 -- Not fresh
@@ -17,6 +18,22 @@ freshIngredient' [] _ = 0 -- Not fresh
 freshIngredient' (interval : rest) ingredient_id
   | ingredient_id >= start && ingredient_id <= stop = 1
   | otherwise = freshIngredient' rest ingredient_id
+  where
+    interval_numbers = (map read $ splitOn "-" interval) :: [Integer]
+    start = head interval_numbers
+    stop = last interval_numbers
+
+allFreshInIntervals :: Set.Set Integer -> [String] -> Set.Set Integer
+allFreshInIntervals set [] = set
+allFreshInIntervals set (interval : rest) = allFreshInIntervals (Set.union set $ Set.fromList [start .. stop]) rest
+  where
+    interval_numbers = (map read $ splitOn "-" interval) :: [Integer]
+    start = head interval_numbers
+    stop = last interval_numbers
+
+allFreshInIntervals' :: [(Integer, Integer)] -> [String] -> [(Integer, Integer)]
+allFreshInIntervals' set [] = set
+allFreshInIntervals' set (interval : rest) = allFreshInIntervals' [(0,0)] rest
   where
     interval_numbers = (map read $ splitOn "-" interval) :: [Integer]
     start = head interval_numbers
@@ -51,5 +68,7 @@ main = do
 
   -- 2nd star
   print "Second star example:"
+  print $ length $ allFreshInIntervals Set.empty $ lines example_intervals
 
   print "Second star input:"
+  print $ length $ allFreshInIntervals Set.empty $ lines input_intervals
