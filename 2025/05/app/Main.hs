@@ -1,5 +1,7 @@
 module Main where
 
+import Data.Function (on)
+import Data.List (sortBy)
 import Data.List.Split (splitOn)
 import qualified Data.Set as Set
 
@@ -31,13 +33,44 @@ allFreshInIntervals set (interval : rest) = allFreshInIntervals (Set.union set $
     start = head interval_numbers
     stop = last interval_numbers
 
+sortByFirst :: (Ord a) => [(a, b)] -> [(a, b)]
+sortByFirst = sortBy (compare `on` fst)
+
 allFreshInIntervals' :: [(Integer, Integer)] -> [String] -> [(Integer, Integer)]
-allFreshInIntervals' set [] = set
-allFreshInIntervals' set (interval : rest) = allFreshInIntervals' [(0,0)] rest
+allFreshInIntervals' list_intervals [] = list_intervals
+allFreshInIntervals' [] (str_interval : str_rest) = allFreshInIntervals' [(start, stop)] str_rest
   where
-    interval_numbers = (map read $ splitOn "-" interval) :: [Integer]
+    interval_numbers = (map read $ splitOn "-" str_interval) :: [Integer]
     start = head interval_numbers
     stop = last interval_numbers
+allFreshInIntervals' list_intervals (str_interval : str_rest) = allFreshInIntervals' (sortByFirst $ updateFreshnessList [] list_intervals (start, stop)) str_rest
+  where
+    interval_numbers = (map read $ splitOn "-" str_interval) :: [Integer]
+    start = head interval_numbers
+    stop = last interval_numbers
+
+updateFreshnessList :: [(Integer, Integer)] -> [(Integer, Integer)] -> (Integer, Integer) -> [(Integer, Integer)]
+updateFreshnessList processed_intervals [] new_interval = processed_intervals ++ [new_interval]
+updateFreshnessList processed_intervals interval_list@(interval@(list_start, list_stop) : rest) (start, stop)
+  | stop < (list_start - 1) = processed_intervals ++ (start, stop) : interval_list
+  | (list_stop + 1) < start = updateFreshnessList (processed_intervals ++ [interval]) rest (start, stop)
+  | list_start <= start && stop <= list_stop = processed_intervals ++ interval_list
+  | start < list_start = updateFreshnessList processed_intervals rest (start, max list_stop stop)
+  | list_stop < stop = updateFreshnessList processed_intervals rest (min list_start start, stop)
+  | otherwise = processed_intervals ++ interval_list
+
+-- \| otherwise = processed_intervals ++ interval_list
+-- where
+
+numberOfFreshInIntervals :: [String] -> Integer
+numberOfFreshInIntervals str_list = (+) (toInteger $ length fresh_in_intervals) $ sum $ map (uncurry (flip (-))) fresh_in_intervals
+  where
+    fresh_in_intervals = allFreshInIntervals' [] str_list
+
+debugIntervals :: [[String]] -> [String] -> [[String]]
+debugIntervals buffer [] = reverse $ map reverse buffer
+debugIntervals [] (first : rest) = debugIntervals [[first]] rest
+debugIntervals buffer@(buffer_head : _) (first : rest) = debugIntervals ((first : buffer_head) : buffer) rest
 
 main :: IO ()
 main = do
@@ -68,7 +101,11 @@ main = do
 
   -- 2nd star
   print "Second star example:"
-  print $ length $ allFreshInIntervals Set.empty $ lines example_intervals
+  -- let scan_example_intervals = debugIntervals [] $ lines example_intervals
+  -- mapM_ print $ zip (lines example_intervals) $ map (numberOfFreshInIntervals . flip (:) [] . (lines example_intervals !!)) [0 .. length (lines example_intervals) - 1]
+  -- mapM_ print $ zip (lines example_intervals) $ map numberOfFreshInIntervals scan_example_intervals
+  print $ numberOfFreshInIntervals $ lines example_intervals
 
   print "Second star input:"
-  print $ length $ allFreshInIntervals Set.empty $ lines input_intervals
+  -- mapM_ print $ zip (lines input_intervals) $ map numberOfFreshInIntervals $ debugIntervals [] $ lines input_intervals
+  print $ numberOfFreshInIntervals $ lines input_intervals
