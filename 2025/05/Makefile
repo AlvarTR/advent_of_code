@@ -3,7 +3,7 @@ ADVENT_CODENAME:=app/Main
 
 MAKEFILE_DIR:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-all: clean run
+all: clean tests run
 
 OPT_LEVEL:=0
 run: ${MAKEFILE_DIR}dist-newstyle
@@ -13,6 +13,9 @@ run: ${MAKEFILE_DIR}dist-newstyle
 
 clean:
 	rm -rf ${MAKEFILE_DIR}dist-newstyle
+
+tests: ${MAKEFILE_DIR}dist-newstyle
+	cabal test freshIngredients-tests
 
 ${MAKEFILE_DIR}dist-newstyle: 
 	cabal build --enable-profiling --profiling-detail=late
