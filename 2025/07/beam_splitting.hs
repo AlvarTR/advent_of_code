@@ -25,6 +25,17 @@ beamSplitter numSplits beams (line : rest) = beamSplitter splitsSoFar newBeams r
 splitterInterface :: [String] -> Int
 splitterInterface (first : rest) = beamSplitter 0 (singleton $ firstLineSource 0 first) rest
 
+timelineSplitter :: Int -> [String] -> Int
+timelineSplitter beamColumn [] = 1
+timelineSplitter beamColumn (line : rest)
+  | beamEncounter == '.' = timelineSplitter beamColumn rest
+  | beamEncounter == '^' = timelineSplitter (beamColumn - 1) rest + timelineSplitter (beamColumn + 1) rest
+  where
+    beamEncounter = line !! beamColumn
+
+timelineInterface :: [String] -> Int
+timelineInterface (first : rest) = timelineSplitter (firstLineSource 0 first) rest
+
 main :: IO ()
 main = do
   let example =
@@ -57,5 +68,7 @@ main = do
 
   -- 2nd star
   print "Second star example:"
+  print $ timelineInterface example
 
   print "Second star input:"
+  print $ timelineInterface $ lines contents
