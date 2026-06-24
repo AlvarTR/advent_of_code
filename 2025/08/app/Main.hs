@@ -1,27 +1,85 @@
 module Main where
 
 import Data.List.Split (splitOn)
-import qualified Data.Text as Text
+import Data.List (minimumBy)
+import Data.Ord (comparing)
+
+
+-- import Data.IntMap.Lazy qualified as IntMap
+-- import Data.Text qualified as Text
 
 type Point3D = (Int, Int, Int)
-cutEachAxis :: [Point3D] -> (Point3D, Point3D, Point3D)
-cutEachAxis point_list = ((minX,minY,minZ),(minX + maxX `div` 2,minY + maxY  `div` 2,minZ + maxZ  `div` 2),(maxX,maxY,maxZ))
-  where
-    first (x,_,_) = x
-    second (_,y,_) = y
-    third (_,_,z) = z
-    minX = minimum $ map first point_list
-    maxX = maximum $ map first point_list
-    minY = minimum $ map second point_list
-    maxY = maximum $ map second point_list
-    minZ = minimum $ map third point_list
-    maxZ = maximum $ map third point_list
-
 
 lineToCoor :: String -> Point3D
 lineToCoor string = (x, y, z)
   where
     [x, y, z] = map read $ splitOn "," string
+
+xCoor (x, _, _) = x
+
+yCoor (_, y, _) = y
+
+zCoor (_, _, z) = z
+
+cutEachAxis :: [Point3D] -> Point3D
+cutEachAxis point_list =
+  ( minX + maxX `div` 2,
+    minY + maxY `div` 2,
+    minZ + maxZ `div` 2
+  )
+  where
+    minX = minimum $ map xCoor point_list
+    maxX = maximum $ map xCoor point_list
+    minY = minimum $ map yCoor point_list
+    maxY = maximum $ map yCoor point_list
+    minZ = minimum $ map zCoor point_list
+    maxZ = maximum $ map zCoor point_list
+
+corralledPointsWorker ::
+  [[Point3D]] ->
+  [Point3D] ->
+  Point3D ->
+  [[Point3D]]
+corralledPointsWorker storage [] _ = storage
+corralledPointsWorker storage (first@(x, y, z) : rest) cut_point@(xCut, yCut, zCut) = corralledPointsWorker new_storage rest cut_point
+  where
+    xIndex 
+      | x < xCut = 0 
+      | otherwise = 4
+    yIndex 
+      | y < yCut = 0 
+      | otherwise = 2
+    zIndex 
+      | z < zCut = 0 
+      | otherwise = 1
+    index = xIndex + yIndex + zIndex
+    new_sector = first : (storage !! index)
+    new_storage = take (index - 1) storage ++ (new_sector : drop index storage)
+
+-- storage = ((storage !! xIndex) !! yIndex) !! zIndex = new_sector
+
+corralledPoints ::
+  [Point3D] ->
+  [[Point3D]]
+corralledPoints points = corralledPointsWorker [[], [], [], [], [], [], [], []] points $ cutEachAxis points
+
+distance :: Point3D -> Point3D -> Float
+distance (x1, y1, z1) (x2, y2, z2) = sqrt $ fromIntegral (xDiff*xDiff + yDiff*yDiff + zDiff*zDiff)
+  where
+    xDiff = x2 - x1
+    yDiff = y2 - y1
+    zDiff = z2 - z1
+
+smallestDistancesInsideCorral :: [(Int, Float)] -> [Point3D] -> [Point3D] -> [(Int, Float)]
+smallestDistancesInsideCorral storage [] [_] = storage
+smallestDistancesInsideCorral storage _ [] = storage
+smallestDistancesInsideCorral storage previous_points (first : rest) = smallestDistancesInsideCorral new_storage (previous_points ++ [first]) rest
+  where
+    lowIndexedDistances = zip [0..] $ map (distance first) previous_points
+    highIndexedDistances = zip [1 + length previous_points..] $ map (distance first) rest
+    minIndexedDistance = minimumBy (comparing snd) (lowIndexedDistances ++ highIndexedDistances)
+    new_storage = storage ++ [minIndexedDistance]
+
 
 main :: IO ()
 main = do
@@ -47,12 +105,21 @@ main = do
           "984,92,344",
           "425,690,689"
         ]
-  let num_cables = 100
+  let example_cables = 100
   -- 1st star
   print "First star example:"
-  mapM_ (print . lineToCoor) example
+  let exampleCoords = map lineToCoor example
+  -- mapM_ print exampleCoords
+  print $ cutEachAxis exampleCoords
+  let exampleCorralled = corralledPoints exampleCoords
+  mapM_ print exampleCorralled
+
+  -- print $ smallestDistancesInsideCorral [] $ head exampleCorralled
+  mapM_ (print . smallestDistancesInsideCorral [] []) exampleCorralled
+
   -- Input text
   contents <- readFile "input.txt"
+  let firstStarCoords = map lineToCoor $ lines contents
 
   print "First star input:"
 
