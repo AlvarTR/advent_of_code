@@ -18,4 +18,4 @@ build ${MAKEFILE_DIR}dist-newstyle:
 	cabal build --enable-profiling --profiling-detail=late
 
 dependencies:
-	cabal update && cabal install --dependencies-only
+	cabal update && cabal v2-install --dependencies-only

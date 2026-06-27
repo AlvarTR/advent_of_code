@@ -1,12 +1,8 @@
 module Main where
 
-import Data.List.Split (splitOn)
 import Data.List (minimumBy)
+import Data.List.Split (splitOn)
 import Data.Ord (comparing)
-
-
--- import Data.IntMap.Lazy qualified as IntMap
--- import Data.Text qualified as Text
 
 type Point3D = (Int, Int, Int)
 
@@ -23,9 +19,9 @@ zCoor (_, _, z) = z
 
 cutEachAxis :: [Point3D] -> Point3D
 cutEachAxis point_list =
-  ( minX + maxX `div` 2,
-    minY + maxY `div` 2,
-    minZ + maxZ `div` 2
+  ( (minX + maxX) `div` 2,
+    (minY + maxY) `div` 2,
+    (minZ + maxZ) `div` 2
   )
   where
     minX = minimum $ map xCoor point_list
@@ -37,49 +33,66 @@ cutEachAxis point_list =
 
 corralledPointsWorker ::
   [[Point3D]] ->
+  [[Point3D]] ->
   [Point3D] ->
   Point3D ->
-  [[Point3D]]
-corralledPointsWorker storage [] _ = storage
-corralledPointsWorker storage (first@(x, y, z) : rest) cut_point@(xCut, yCut, zCut) = corralledPointsWorker new_storage rest cut_point
+  ([[Point3D]], [[Point3D]])
+corralledPointsWorker point_storage cut_axis_dist_storage [] _ = (point_storage, cut_axis_dist_storage)
+corralledPointsWorker point_storage cut_axis_dist_storage (first@(x, y, z) : rest) cut_point@(xCut, yCut, zCut) = corralledPointsWorker new_point_storage new_cut_axis_dist_storage rest cut_point
   where
-    xIndex 
-      | x < xCut = 0 
+    cut_axis_dist = (x - xCut, y - yCut, z - zCut)
+    xIndex
+      | xCoor cut_axis_dist < 0 = 0
       | otherwise = 4
-    yIndex 
-      | y < yCut = 0 
+    yIndex
+      | yCoor cut_axis_dist < 0 = 0
       | otherwise = 2
-    zIndex 
-      | z < zCut = 0 
+    zIndex
+      | zCoor cut_axis_dist < 0 = 0
       | otherwise = 1
-    index = xIndex + yIndex + zIndex
-    new_sector = first : (storage !! index)
-    new_storage = take (index - 1) storage ++ (new_sector : drop index storage)
-
--- storage = ((storage !! xIndex) !! yIndex) !! zIndex = new_sector
+    index = sum [xIndex, yIndex, zIndex]
+    new_sector = first : (point_storage !! index)
+    new_distance_sector = cut_axis_dist : (cut_axis_dist_storage !! index)
+    new_point_storage = (++) (take index point_storage) (new_sector : drop (index + 1) point_storage)
+    new_cut_axis_dist_storage = (++) (take index cut_axis_dist_storage) (new_distance_sector : drop (index + 1) cut_axis_dist_storage)
 
 corralledPoints ::
   [Point3D] ->
-  [[Point3D]]
-corralledPoints points = corralledPointsWorker [[], [], [], [], [], [], [], []] points $ cutEachAxis points
+  ([[Point3D]], [[Point3D]])
+corralledPoints points = corralledPointsWorker [[], [], [], [], [], [], [], []] [[], [], [], [], [], [], [], []] points $ cutEachAxis points
 
 distance :: Point3D -> Point3D -> Float
-distance (x1, y1, z1) (x2, y2, z2) = sqrt $ fromIntegral (xDiff*xDiff + yDiff*yDiff + zDiff*zDiff)
+distance (x1, y1, z1) (x2, y2, z2) = sqrt $ fromIntegral (xDiff * xDiff + yDiff * yDiff + zDiff * zDiff)
   where
     xDiff = x2 - x1
     yDiff = y2 - y1
     zDiff = z2 - z1
 
-smallestDistancesInsideCorral :: [(Int, Float)] -> [Point3D] -> [Point3D] -> [(Int, Float)]
-smallestDistancesInsideCorral storage [] [_] = storage
-smallestDistancesInsideCorral storage _ [] = storage
-smallestDistancesInsideCorral storage previous_points (first : rest) = smallestDistancesInsideCorral new_storage (previous_points ++ [first]) rest
+pointListSmallestDistance :: [(Int, Float)] -> [Point3D] -> [Point3D] -> [(Int, Float)]
+pointListSmallestDistance storage [] [_] = storage
+pointListSmallestDistance storage _ [] = storage
+pointListSmallestDistance storage previous_points (first : rest) = pointListSmallestDistance new_storage (previous_points ++ [first]) rest
   where
-    lowIndexedDistances = zip [0..] $ map (distance first) previous_points
-    highIndexedDistances = zip [1 + length previous_points..] $ map (distance first) rest
+    lowIndexedDistances = zip [0 ..] $ map (distance first) previous_points
+    highIndexedDistances = zip [1 + length previous_points ..] $ map (distance first) rest
     minIndexedDistance = minimumBy (comparing snd) (lowIndexedDistances ++ highIndexedDistances)
     new_storage = storage ++ [minIndexedDistance]
 
+corralboundMinimum :: [[(Int, Float)]] -> (Int, (Int, (Int, Float)))
+corralboundMinimum =
+  minimumBy (comparing (snd . snd . snd))
+    . zip [0 ..]
+    . map (minimumBy (comparing (snd . snd)) . zip [0 ..])
+    . filter (not . null)
+
+edgyPoints :: [Point3D] -> Float -> [Point3D] -> [Point3D] -> [Point3D]
+edgyPoints storage _ [] _ = storage
+edgyPoints storage _ _ [] = storage
+edgyPoints storage ref_distance (point : rest_points) (dist@(x, y, z) : rest_dist) = edgyPoints new_storage ref_distance rest_points rest_dist
+  where
+    new_storage
+      | all (ref_distance <) [fromIntegral $ abs x, fromIntegral $ abs y, fromIntegral $ abs z] = storage
+      | otherwise = point : storage
 
 main :: IO ()
 main = do
@@ -108,20 +121,64 @@ main = do
   let example_cables = 100
   -- 1st star
   print "First star example:"
-  let exampleCoords = map lineToCoor example
-  -- mapM_ print exampleCoords
-  print $ cutEachAxis exampleCoords
-  let exampleCorralled = corralledPoints exampleCoords
-  mapM_ print exampleCorralled
 
-  -- print $ smallestDistancesInsideCorral [] $ head exampleCorralled
-  mapM_ (print . smallestDistancesInsideCorral [] []) exampleCorralled
+  let exampleCoords = map lineToCoor example
+  print "Parsed coords:"
+  mapM_ print exampleCoords
+
+  let exampleDistances = pointListSmallestDistance [] [] exampleCoords
+  print "Distances:"
+  print exampleDistances
+  print "Abs min distance:"
+  print $ minimumBy (comparing snd) exampleDistances
+
+  print "Cut point:"
+  print $ cutEachAxis exampleCoords
+
+  let (exampleCorralled, exampleCorralledDist) = corralledPoints exampleCoords
+  print "Corralled:"
+  mapM_ print exampleCorralled
+  print "Cut distances:"
+  mapM_ print exampleCorralledDist
+
+  -- print $ pointListSmallestDistance [] $ head exampleCorralled
+  let exampleDistancesInsideCorral = map (pointListSmallestDistance [] []) exampleCorralled
+  print "Distances inside corrales:"
+  mapM_ print exampleDistancesInsideCorral
+
+  let exampleMin@(exampleCorralIndex, (exampleIndex, (examplePartnerIndex, exampleMinDistance))) = corralboundMinimum exampleDistancesInsideCorral
+  print "Min distance of corralled points:"
+  print exampleMin
+
+  let exampleEdgyPoints = zipWith (edgyPoints [] exampleMinDistance) exampleCorralled exampleCorralledDist
+  print "Edgy points:"
+  mapM_ print exampleEdgyPoints
 
   -- Input text
   contents <- readFile "input.txt"
+  print "First star input:"
+
   let firstStarCoords = map lineToCoor $ lines contents
 
-  print "First star input:"
+  let firstStarDistances = pointListSmallestDistance [] [] firstStarCoords
+  print "Distances:"
+  print firstStarDistances
+
+  print "Abs min distance:"
+  print $ minimumBy (comparing snd) firstStarDistances
+
+  -- print "Cut point:"
+  -- print $ cutEachAxis firstStarCoords
+
+  let (firstStarCorralled, firstStarCorralledDist) = corralledPoints firstStarCoords
+  -- print "Corralled:"
+  -- mapM_ print firstStarCorralled
+  -- print "Cut distances:"
+  -- mapM_ print firstStarCorralledDist
+
+  let firstStarDistancesInsideCorral = map (pointListSmallestDistance [] []) firstStarCorralled
+  -- print "Distances inside corrales:"
+  -- mapM_ print firstStarDistancesInsideCorral
 
   -- 2nd star
   print "Second star example:"
