@@ -2,7 +2,7 @@ module Main where
 
 import Data.Ord (compare, comparing)
 
-import Data.List (minimumBy, sort, sortBy, (\\), product, concat, nub)
+import Data.List (minimumBy, sort, sortBy, (\\), product, concat, nub, any)
 import Data.List.Split (splitOn)
 
 import qualified Data.Set as Set
@@ -18,6 +18,8 @@ listToPoints _ = []
 
 lineToCoor :: String -> Point3D
 lineToCoor string = head $ listToPoints $ map read $ splitOn "," string
+
+xCoor (x, _, _) = x
 
 substituteListElement :: Int -> a -> [a] -> [a]
 substituteListElement n element list = (++) (take n list) (element : drop (n + 1) list)
@@ -114,8 +116,29 @@ jboxesGroups storage ((index, jboxes):rest) = jboxesGroups new_storage rest
     new_group = Set.unions $ (:) new_connections $ map (storage !!) groups_intersected
     new_storage = new_group : map (storage !!) groups_not_intersected
 
-groupPoints :: [Set.Set a] -> Int
-groupPoints = product . take 3 . sortBy (flip compare) . nub . map length
+groupScore :: [Set.Set a] -> Int
+groupScore = product . take 3 . sortBy (flip compare) . nub . map length
+
+jboxGroupLastMergeInterface :: [(Int, (Int, Float))] -> [Int]
+jboxGroupLastMergeInterface distances = jboxGroupLastMerge [] [-1, -1] distances $ floor $ sqrt $ fromIntegral $ 2 * length distances
+
+jboxGroupLastMerge :: [Set.Set Int] -> [Int] -> [(Int, (Int, Float))] -> Int -> [Int]
+jboxGroupLastMerge _ last_connection [] _ = last_connection
+jboxGroupLastMerge [] _ ((index1, (index2, _)):rest) num_points = jboxGroupLastMerge [Set.fromList [index1, index2]] [index1, index2] rest num_points
+jboxGroupLastMerge storage last_connection ((index1, (index2, _)): rest) num_points
+  | num_points == length (head storage) = last_connection
+  | new_connection `elem` intersections = jboxGroupLastMerge storage last_connection rest num_points
+  | null intersections = jboxGroupLastMerge (new_connection : storage) index_list rest num_points
+  | otherwise = jboxGroupLastMerge new_storage index_list rest num_points
+  where
+    index_list = [index1, index2]
+    new_connection = Set.fromList index_list
+    intersections = map (Set.intersection new_connection) storage
+    groups_intersected = map fst $ filter (not . null . snd) $ zip [0..] intersections
+    groups_not_intersected = [0..length storage - 1] \\ groups_intersected
+    new_group = Set.unions $ (:) new_connection $ map (storage !!) groups_intersected
+    new_storage = new_group : map (storage !!) groups_not_intersected
+
 
 main :: IO ()
 main = do
@@ -194,9 +217,9 @@ main = do
   print "Cables used:"
   print $ sum $ map (flip (-) 1 . length) example_groups
 
-  let example_group_points = groupPoints example_groups
+  let example_group_score = groupScore example_groups
   print "Group points:"
-  print example_group_points
+  print example_group_score
 
   -- Input text
   contents <- readFile "input.txt"
@@ -216,7 +239,7 @@ main = do
   let first_star_connections = connectionsInterface first_star_sorted_distances first_star_cables
   -- print show first_star_cables ++" smallest connections:"
   -- mapM_ print first_star_connections
-  
+
   print "Num connections:"
   print $ sum $ map (length . snd) first_star_connections
 
@@ -227,11 +250,27 @@ main = do
   print "Cables used:"
   print $ sum $ map (flip (-) 1 . length) first_star_groups
 
-  let first_star_group_points = groupPoints first_star_groups
-  print "Group points:"
-  print first_star_group_points
+  let first_star_group_score = groupScore first_star_groups
+  print "Group score:"
+  print first_star_group_score
 
   -- 2nd star
   print "Second star example:"
 
+  let snd_example_last_connection = jboxGroupLastMergeInterface example_sorted_distances
+  let snd_example_points = map (example_coords !!) snd_example_last_connection
+  print "Last connection points:"
+  mapM_ print snd_example_points
+
+  print "Last connection score:"
+  print $ product $ map xCoor snd_example_points
+
   print "Second star input:"
+
+  let snd_star_last_connection = jboxGroupLastMergeInterface first_star_sorted_distances
+  let snd_star_points = map (first_star_coords !!) snd_star_last_connection
+  print "Last connection points:"
+  mapM_ print snd_star_points
+
+  print "Last connection score:"
+  print $ product $ map xCoor snd_star_points
