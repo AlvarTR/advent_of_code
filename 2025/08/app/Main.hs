@@ -1,12 +1,11 @@
 module Main where
 
-import Data.Ord (comparing)
+import Data.Ord (compare, comparing)
 
-import Data.List (minimumBy, sort, sortBy, (\\), product)
+import Data.List (minimumBy, sort, sortBy, (\\), product, concat, nub)
 import Data.List.Split (splitOn)
 
 import qualified Data.Set as Set
-
 
 type Point3D = (Int, Int, Int)
 
@@ -62,15 +61,13 @@ square n = n * n
 distance :: Point3D -> Point3D -> Float
 distance (x1, y1, z1) (x2, y2, z2) = sqrt $ fromIntegral $ sum $ map square $ zipWith (-) [x2, y2, z2] [x1, y1, z1]
 
-pointListSmallestDistance :: [(Int, Float)] -> [Point3D] -> [Point3D] -> [(Int, Float)]
-pointListSmallestDistance storage [] [_] = storage
-pointListSmallestDistance storage _ [] = storage
-pointListSmallestDistance storage previous_points (first : rest) = pointListSmallestDistance new_storage (previous_points ++ [first]) rest
+pointListDistances :: [Point3D] -> [Point3D] -> [[(Int, Float)]]
+pointListDistances _ [] = []
+pointListDistances previous_points (first : rest) = sortedDistances : pointListDistances (previous_points ++ [first]) rest
   where
     lowIndexedDistances = zip [0 ..] $ map (distance first) previous_points
     highIndexedDistances = zip [1 + length previous_points ..] $ map (distance first) rest
     sortedDistances = sortBy (comparing snd) (lowIndexedDistances ++ highIndexedDistances)
-    new_storage = storage ++ sortedDistances
 
 corralBoundMinimum :: [[(Int, Float)]] -> (Int, (Int, (Int, Float)))
 corralBoundMinimum =
@@ -88,8 +85,8 @@ edgyPoints storage ref_distance (point : rest_points) (dist@(x, y, z) : rest_dis
       | all ((ref_distance <) . fromIntegral . abs) [x, y, z] = storage
       | otherwise = point : storage
 
-sortDistances :: [(Int, Float)] -> [(Int, (Int, Float))]
-sortDistances = sortBy (comparing (snd . snd)) . zip [0 ..]
+sortDistances :: [[(Int, Float)]] -> [(Int, (Int, Float))]
+sortDistances = sortBy (comparing (snd . snd)) . concat . zipWith (\ x y -> zip (repeat x) y) [0 ..]
 
 connectionsInterface :: [(Int, (Int, Float))] -> Int -> [(Int, Set.Set Int)]
 connectionsInterface distances = filter (not . null . snd) . zip [0..] . connections (replicate (length distances) Set.empty) distances
@@ -118,7 +115,7 @@ jboxesGroups storage ((index, jboxes):rest) = jboxesGroups new_storage rest
     new_storage = new_group : map (storage !!) groups_not_intersected
 
 groupPoints :: [Set.Set a] -> Int
-groupPoints = product . Set.fromList . map length 
+groupPoints = product . take 3 . sortBy (flip compare) . nub . map length
 
 main :: IO ()
 main = do
@@ -144,18 +141,14 @@ main = do
           "984,92,344",
           "425,690,689"
         ]
-  -- let example_cables = 10
-  let example_cables = length example
+  let example_cables = 10
+  -- let example_cables = length example
   -- 1st star
   print "First star example:"
 
   let example_coords = map lineToCoor example
   -- print "Parsed coords:"
   -- mapM_ print example_coords
-
-  -- let example_distances = pointListSmallestDistance [] [] example_coords
-  -- print "Distances:"
-  -- print example_distances
 
   -- print "Cut point:"
   -- print $ cut_each_axis example_coords
@@ -166,8 +159,8 @@ main = do
   -- print "Cut distances:"
   -- mapM_ print example_corralled_dist
 
-  -- -- print $ pointListSmallestDistance [] $ head example_corralled
-  -- let example_distances_inside_corral = map (pointListSmallestDistance [] []) example_corralled
+  -- -- print $ pointListDistances [] $ head example_corralled
+  -- let example_distances_inside_corral = map (pointListDistances []) example_corralled
   -- print "Distances inside corrales:"
   -- mapM_ print example_distances_inside_corral
 
@@ -179,13 +172,20 @@ main = do
   -- print "Edgy points:"
   -- mapM_ print example_edgy_points
 
-  let example_sorted_distances = sortDistances $ pointListSmallestDistance [] [] example_coords
-  print "Distances:"
-  print example_sorted_distances
+  let example_distances = pointListDistances [] example_coords
+  -- print "Distances:"
+  -- print example_distances
+
+  let example_sorted_distances = sortDistances example_distances
+  -- print "Sorted distances:"
+  -- print example_sorted_distances
 
   let example_connections = connectionsInterface example_sorted_distances example_cables
-  print $ show example_cables ++" smallest connections:"
-  mapM_ print example_connections
+  -- print $ show example_cables ++" smallest connections:"
+  -- mapM_ print example_connections
+
+  print "Num connections:"
+  print $ sum $ map (length . snd) example_connections
 
   let example_groups = jboxesGroups [] example_connections
   print "JBoxes groups:"
@@ -201,18 +201,25 @@ main = do
   -- Input text
   contents <- readFile "input.txt"
   print "First star input:"
-  let first_star_cables = 100
+  let first_star_cables = 1000
 
   let first_star_coords = map lineToCoor $ lines contents
 
-  let first_star_sorted_distances = sortDistances $ pointListSmallestDistance [] [] first_star_coords
+  let first_star_distances = pointListDistances [] first_star_coords
   -- print "Distances:"
+  -- print first_star_distances
+
+  let first_star_sorted_distances = sortDistances first_star_distances
+  -- print "Sorted distances:"
   -- print first_star_sorted_distances
 
   let first_star_connections = connectionsInterface first_star_sorted_distances first_star_cables
   -- print show first_star_cables ++" smallest connections:"
   -- mapM_ print first_star_connections
   
+  print "Num connections:"
+  print $ sum $ map (length . snd) first_star_connections
+
   let first_star_groups = jboxesGroups [] first_star_connections
   print "JBoxes groups:"
   print first_star_groups
