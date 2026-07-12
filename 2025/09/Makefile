@@ -1,19 +1,21 @@
 
-ADVENT_CODENAME:=red_tiles
+ADVENT_CODENAME:=app/Main
 
 MAKEFILE_DIR:=$(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-all: build run
+all: clean run
 
 OPT_LEVEL:=0
-build: 
-	echo ${ADVENT_CODENAME} > ${MAKEFILE_DIR}.gitignore
-	ghc -prof -fprof-auto -rtsopts -O${OPT_LEVEL} ${MAKEFILE_DIR}${ADVENT_CODENAME}.hs 
-	
-run:
-	${MAKEFILE_DIR}${ADVENT_CODENAME} +RTS -p
+run: ${MAKEFILE_DIR}dist-newstyle
+	HASKELL_EXE=$(shell cabal list-bin ${MAKEFILE_DIR}); \
+	echo $$HASKELL_EXE; \
+	$$HASKELL_EXE +RTS -p
 
 clean:
-	rm -f ${MAKEFILE_DIR}${ADVENT_CODENAME}
+	rm -rf ${MAKEFILE_DIR}dist-newstyle
 
-	
+build ${MAKEFILE_DIR}dist-newstyle: 
+	cabal build --enable-profiling --profiling-detail=late
+
+dependencies:
+	cabal update && cabal v2-install --dependencies-only
